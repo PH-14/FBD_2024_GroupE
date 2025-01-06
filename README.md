@@ -5,17 +5,17 @@ EPFL Financial Big Data final project
 
 Use the following command to install the requirements of this project:
 
-'''
+```
 pip install -r requirements.txt
-'''
+```
 
 ## Data pre-processing
 
 To create training and validation sets on ETF data, place the ETF tar archive in the 'data/' directory and use the following command:
 
-'''
+```
 python data_preprocessing.py data/ETFs-2012.tar N T "16:00"
-'''
+```
 
 Where N is the number of stocks to include and T the number of days (max 1 year for now) and "16:00" is the cutoff time.
 This will create two files: 'data/train_data_N_T_2012.parquet' and 'data/val_data_N_T_2012.parquet' (an example is provided for N=10 and T=100). 
