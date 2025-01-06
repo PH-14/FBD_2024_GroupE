@@ -1,0 +1,4 @@
+pandas>=1.5.3
+xlrd>=2.0.1
+pyarrow>=10.0.1
+argparse>=1.4.0
