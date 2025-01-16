@@ -9,6 +9,16 @@ Use the following command to install the requirements of this project:
 pip install -r requirements.txt
 ```
 
+## Data Exploration
+
+To explore the distribution of data over the years, upload all the ETFs-"year".tar files in the "data/" directory, then, run the "exploring.ipynb" file. 
+
+This allows us to observe the distribution of stocks within the years and months available. 
+
+## Data Uploading 
+
+Running the file "uploading.ipynb" will create a new .tar file named "period_data.tar" that contains .parquet files for each day of a chosen period. 
+
 ## Data pre-processing
 
 To create training and validation sets on ETF data, place the ETF tar archive in the 'data/' directory and use the following command:
