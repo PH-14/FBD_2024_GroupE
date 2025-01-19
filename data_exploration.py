@@ -23,6 +23,10 @@ def count_days_per_stock_per_year(year):
             if stock_file.isfile() and stock_file.name.endswith(f"_{year}.tar"):
                 stock_tar_name = os.path.basename(stock_file.name)
                 ticker = stock_tar_name.split('.')[0]  # Extract the ticker from the file name
+
+                # The stock SOYB is missing a file for one day, we therefore, do not use this stock
+                if(ticker == 'SOYB'):
+                    continue
                 
                 target_stock_file = year_tar.extractfile(stock_file)
 
@@ -64,7 +68,7 @@ def stats_per_year(dictionary, year):
     
 # Calculates missing days and the number of stocks with missing data per month for a given year,
 # based on the maximum number of available days for any stock in that month. Plots the results.
-def calculate_missing_days_stats_based_on_max(yearly_days, year):
+def calculate_missing_days_stats(yearly_days, year):
     """
     Returns:
     - expected_days_per_month (dict): Maximum available days for any stock in each month (YYYY-MM).
@@ -74,9 +78,12 @@ def calculate_missing_days_stats_based_on_max(yearly_days, year):
     # Extract stock days for the specified year
     stock_days_count = yearly_days[year]
 
+    stocks_with_missing_data_per_month = {}
+
     # Group days by month for each stock
     monthly_stock_days = defaultdict(lambda: defaultdict(set))
     for ticker, days in stock_days_count.items():
+        stocks_with_missing_data_per_month[ticker] = set()
         for day in days:
             month = day[:7]  # Extract YYYY-MM
             monthly_stock_days[month][ticker].add(day)
@@ -89,8 +96,9 @@ def calculate_missing_days_stats_based_on_max(yearly_days, year):
 
     # Calculate total missing days and number of stocks with missing data per month
     total_missing_days_per_month = defaultdict(int)
-    stocks_with_missing_data_per_month = defaultdict(int)
+    stocks_with_missing_data_per_month_count = defaultdict(int)
     
+
     for month, stocks in monthly_stock_days.items():
         expected_days = expected_days_per_month[month]
         for ticker, days in stocks.items():
@@ -98,12 +106,13 @@ def calculate_missing_days_stats_based_on_max(yearly_days, year):
             missing_days = expected_days - available_days
             if missing_days > 0:
                 total_missing_days_per_month[month] += missing_days
-                stocks_with_missing_data_per_month[month] += 1
-
+                stocks_with_missing_data_per_month_count[month] += 1
+                stocks_with_missing_data_per_month[ticker].add(month)
+                
     # Prepare data for plotting
     months = sorted(expected_days_per_month.keys())
     missing_days = [total_missing_days_per_month.get(month, 0) for month in months]
-    stocks_with_missing = [stocks_with_missing_data_per_month.get(month, 0) for month in months]
+    stocks_with_missing = [stocks_with_missing_data_per_month_count.get(month, 0) for month in months]
     max_days_per_month = [expected_days_per_month.get(month, 0) for month in months]
 
     # Plot results with the addition of maximum days per month
@@ -132,7 +141,12 @@ def calculate_missing_days_stats_based_on_max(yearly_days, year):
     plt.tight_layout()
     plt.show()
 
-    return expected_days_per_month, total_missing_days_per_month, stocks_with_missing_data_per_month
+    filtered_stocks_with_missing_data_per_month = {
+        key: value
+        for key, value in stocks_with_missing_data_per_month.items()
+        if len(value) > 0  # Explicitly checks if the list is non-empty
+    }
+    return filtered_stocks_with_missing_data_per_month
 
 # Create a dictionary of dates with their corresponding list of tickers.
 def filter_days_for_period(start_date, end_date):
