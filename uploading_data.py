@@ -155,7 +155,7 @@ def load_all(start_date, end_date, save = False):
         # Combine all DataFrames for the date
         if daily_data:
             combined_df = pd.concat(daily_data)
-
+        
             if (save):
                 output_dir = "data/dates"
                 output_path = os.path.join(output_dir, f"{date_str}.parquet")
