@@ -48,14 +48,8 @@ def create_louvain_graph(correlation_matrix):
     C = abs(correlation_matrix - C_0)
     return nx.from_pandas_adjacency(C)
 
-def main():
+def create_clusters(tar_file_path):
     # Argument parsing
-
-    parser = argparse.ArgumentParser(description="Cluster ETF data days")
-    parser.add_argument('main_tar_file', type=str, help="Path to the main ETF tar file")
-    args = parser.parse_args()
-
-    tar_file_path = args.main_tar_file
     combined_df = pd.DataFrame()
 
     print(f"Processing tar file: {tar_file_path}")
@@ -105,6 +99,41 @@ def main():
     print("The length of each clusters are", clusters.groupby('Cluster').size())
 
     print("The clusters are:", clusters)
+
+def classify_new_day(new_day_data, daily_data_df, clusters):
+        """
+        Classify a new day into an existing cluster based on correlation similarity with historical clusters.
+
+        Parameters:
+        - new_day_data: DataFrame containing log-returns of the new day to classify.
+        - daily_data_df: DataFrame of historical daily data used for clustering.
+        - clusters: DataFrame containing cluster assignments for the historical data.
+
+        Returns:
+        - assigned_cluster: The cluster the new day is assigned to.
+        """
+        
+        # Compute correlation of the new day's vector with the existing days' vectors (daily_data_df)
+        new_day_corr = daily_data_df.corrwith(pd.Series(new_day_data))
+        # Assign the new day to the cluster with the highest correlation
+        # First, calculate the average correlation for each cluster
+        cluster_correlations = {}
+        for cluster in clusters['Cluster'].unique():
+            cluster_days = clusters[clusters['Cluster'] == cluster]['Day']
+            cluster_corrs = new_day_corr[cluster_days.index]
+            cluster_correlations[cluster] = cluster_corrs.mean()
+
+        # Assign the new day to the cluster with the highest average correlation
+        assigned_cluster = max(cluster_correlations, key=cluster_correlations.get)
+        print(f"The new day is assigned to cluster {assigned_cluster} with correlation {cluster_correlations[assigned_cluster]}")
+        return assigned_cluster
+
+def main():
+
+    parser = argparse.ArgumentParser(description="Cluster ETF data days")
+    parser.add_argument('main_tar_file', type=str, help="Path to the main ETF tar file")
+    args = parser.parse_args()
+    create_clusters(args.main_tar_file)
 
 if __name__ == '__main__':
     main()
