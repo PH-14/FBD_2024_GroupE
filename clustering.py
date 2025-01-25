@@ -48,31 +48,25 @@ def create_louvain_graph(correlation_matrix):
     C = abs(correlation_matrix - C_0)
     return nx.from_pandas_adjacency(C)
 
-def create_clusters(tar_file_path):
-    # Argument parsing
+def load_data(tar_file):
     combined_df = pd.DataFrame()
 
-    print(f"Processing tar file: {tar_file_path}")
-
-    # Open the tar file
-    with tarfile.open(tar_file_path, 'r') as tar:
-        # Iterate through each member in the tar file
+    with tarfile.open(tar_file, 'r') as tar:
         for member in tar.getmembers():
-            # Check if the file is a .parquet file
             if member.isfile() and member.name.endswith('.parquet'):
                 # Extract the file
                 extracted_file = tar.extractfile(member)
                 if extracted_file:
                     # Load the parquet file into a DataFrame
                     daily_df = pd.read_parquet(extracted_file)
-                    # Reset the index and keep it as a column
                     daily_df.reset_index(inplace=True)
-                    # Append to the combined DataFrame
                     combined_df = pd.concat([combined_df, daily_df], ignore_index=True)
 
-    print(f"Combined DataFrame shape: {combined_df.shape}")
+    return combined_df
 
-    filtered_df = combined_df.copy()
+def compute_log_returns(df):
+
+    filtered_df = df.copy()
     filtered_df = filtered_df.pivot_table(index='xltime', columns='stock', values='price', aggfunc='mean')
     filtered_df.index = pd.to_datetime(filtered_df.index)
     filtered_df = filtered_df[filtered_df.index.time < datetime.strptime('15:30', '%H:%M').time()]
@@ -84,6 +78,29 @@ def create_clusters(tar_file_path):
     daily_data = log_returns.groupby('Date').apply(lambda x: x.drop(columns='Date').values.flatten())
     daily_data_df = pd.DataFrame(daily_data.tolist(), index=daily_data.index)
     daily_data_df = daily_data_df.fillna(0)
+    
+    return daily_data_df
+
+def plot_clusters(G, partition):
+
+    #Visualize the clusters 
+    pos = nx.spring_layout(G)
+    # color the nodes according to their partition
+    cmap = cm.get_cmap('viridis', max(partition.values()) + 1)
+    nx.draw_networkx_nodes(G, pos, partition.keys(), node_size=40,
+                       cmap=cmap, node_color=list(partition.values()))
+    nx.draw_networkx_edges(G, pos, alpha=0.5)
+    plt.show()
+
+    return None
+
+def create_clusters(tar_file_path):
+    # Argument parsing
+    print(f"Processing tar file: {tar_file_path}")
+    period_data = load_data(tar_file_path)
+    print(f"Combined DataFrame shape: {period_data.shape}")
+
+    daily_data_df = compute_log_returns(period_data)
     
     print(f"Daily data shape: {daily_data_df.shape}")
 
@@ -99,6 +116,10 @@ def create_clusters(tar_file_path):
     print("The length of each clusters are", clusters.groupby('Cluster').size())
 
     print("The clusters are:", clusters)
+
+    plot_clusters(G, partition)
+
+    return clusters
 
 def classify_new_day(new_day_data, daily_data_df, clusters):
         """

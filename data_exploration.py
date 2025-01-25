@@ -242,7 +242,6 @@ def count_minutes_per_stock_per_months(month:int):
 
     return stock_minutes, max
 
-
 def stats_per_stock(dictionary, max):
 
     # Number of days 
