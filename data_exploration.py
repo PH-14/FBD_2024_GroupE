@@ -7,6 +7,7 @@ import numpy as np
 from collections import defaultdict
 from matplotlib import pyplot as plt
 import os
+import re
 
 ## Count the total number of days of data available for each stock in a given year.
 def count_days_per_stock_per_year(year):
@@ -188,3 +189,78 @@ def filter_days_for_period(start_date, end_date):
 
     # Return tickers per date, sorted by date
     return dict(sorted(tickers_per_date.items()))
+
+def count_minutes_per_stock_per_months(month:int):
+    # fill month with 0 to have two digits
+    tar_file_path = f"data/period_data.tar"
+    stock_minutes = {}
+    max = 0 
+    counter = 0
+
+    # Number of expected minutes per day is 
+    # Number of days is 211 
+
+    # Extract the main daily tar file
+    with tarfile.open(tar_file_path, "r") as month_tar:
+
+        # for each parquet file in the month file
+        day_filenames = month_tar.getmembers()
+
+       
+
+        # Iterate through the nested daily tar files
+        for day_filename in day_filenames:
+            
+            if day_filename.isfile() and day_filename.name.endswith(f".parquet"):
+                # open the corresponding parquet file
+                
+                print(day_filename)
+                counter +=1
+
+
+                # Read parquet file
+                day_trades = pd.read_parquet(month_tar.extractfile(day_filename))
+
+                
+                # List of stock for that day 
+                # TODO: change to stock 
+                stocks = day_trades['ticker'].unique()
+               
+
+                # count the number of minutes for each stock
+                for stock in stocks:
+                    nbr_minutes = day_trades[day_trades['ticker'] == stock].shape[0]
+                    
+                    if nbr_minutes > max:
+                        max = nbr_minutes
+                        print(max)
+                    if stock not in stock_minutes.keys():
+                        stock_minutes[stock] = nbr_minutes
+                    else: 
+                        stock_minutes[stock] += nbr_minutes
+    print(counter)
+
+    return stock_minutes, max
+
+
+def stats_per_stock(dictionary, max):
+
+    # Number of days 
+    nbr_days = 213
+
+    num_stocks = len(dictionary)
+    incomplete_stocks = sum(1 for minutes in dictionary.values() if minutes < max * nbr_days)
+    incomplete_percentage = (incomplete_stocks / num_stocks) * 100
+    
+    print(f"There are {num_stocks} stocks.")
+    print(f"{incomplete_stocks} of which have incomplete data (less than {max* nbr_days} minutes of data), corresponding to {incomplete_percentage:.2f}% of the stocks. \n")
+
+def calculate_ratio_missing_minutes_per_stocks(dictionary, max): 
+    # Number of days 
+    nbr_days = 213
+
+    for stock, minutes in dictionary.items():
+        if minutes < max * nbr_days:
+            print(f"Stock {stock} has {100 *(max * nbr_days - minutes)/ (max * nbr_days):.2f} % missing minutes of data.")
+        else:
+            print(f"Stock {stock} has complete data.")
