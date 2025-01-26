@@ -23,7 +23,6 @@ FBD_project/
 ├── [data_preprocessing.py](data_preprocessing.py)              # Functions to clean our chosen period data 
 ├── [clustering.py](clustering.py)                              # Functions to further clean the data for pre-processing
 ├── [strategy.py](strategy.py)                                  # Functions to implement the clustering and the strategies
-├── [main.py](main.py)                                          # Functions to run all our analysis and results
 ├── [uploading.ipynb](uploading.ipynb)                          # Notebook to explore the yearly data provided by the prof & upload
 ├── [preprocessing.ipynb](preprocessing.ipynb)                  # Notebook to do the preprocessing of the data for the chosen period
 ├── [strategy.ipynb](strategy.ipynb)                            # Notebook to compute and observe the results of multiple portfolio strategies
