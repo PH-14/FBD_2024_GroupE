@@ -1,5 +1,6 @@
 # FBD_2024_GroupE
 Final Project for Financial Big Data EPFL
+To view the whole code go to our [Github repository](https://github.com/PH-14/FBD_2024_GroupE).
 
 ## Requirements
 
