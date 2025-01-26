@@ -95,7 +95,6 @@ def plot_clusters(G, partition):
 def create_clusters(df):
 
     daily_data_df = compute_log_returns(df)
-    
     print(f"Daily data shape: {daily_data_df.shape}")
 
     correlation_matrix = daily_data_df.T.corr()
@@ -104,7 +103,6 @@ def create_clusters(df):
     # Apply Louvain clustering
     partition = community.community_louvain.best_partition(G, weight='weight', random_state = 42)
 
-    # Convert results to a DataFrame
     clusters = pd.DataFrame({'Day': list(partition.keys()), 'Cluster': list(partition.values())})
     print("There are", len(clusters['Cluster'].unique()), "clusters")
     print("The length of each clusters are", clusters.groupby('Cluster').size())
@@ -115,13 +113,21 @@ def create_clusters(df):
 
 ## Creates and visualizes the clusters from the .tar file.
 def create_clusters_file(tar_file_path):
-    # Argument parsing
+    """
+    Creates clusters from a given .tar data file.
+
+    Parameters:
+        - tar_file_path: path to a .tar file containing the data.
+        
+    Returns:
+        - clusters: a Dataframe matching the days to a cluster.
+        - daily_data_df: the log returns Dataframe of the data. 
+    """
     print(f"Processing tar file: {tar_file_path}")
     period_data = load_cleaned_data(tar_file_path)
     print(f"Combined DataFrame shape: {period_data.shape}")
 
     daily_data_df = compute_log_returns(period_data)
-    
     print(f"Daily data shape: {daily_data_df.shape}")
 
     correlation_matrix = daily_data_df.T.corr()
@@ -130,7 +136,6 @@ def create_clusters_file(tar_file_path):
     # Apply Louvain clustering
     partition = community.community_louvain.best_partition(G, weight='weight')
 
-    # Convert results to a DataFrame
     clusters = pd.DataFrame({'Day': list(partition.keys()), 'Cluster': list(partition.values())})
     print("There are", len(clusters['Cluster'].unique()), "clusters")
     print("The length of each clusters are", clusters.groupby('Cluster').size())
@@ -139,6 +144,7 @@ def create_clusters_file(tar_file_path):
 
     return clusters, daily_data_df
 
+## Allocates a new day to one of the computed clusters
 def classify_new_day(new_day_data, daily_data_df, clusters):
     """
     Classify a new day into an existing cluster based on correlation similarity with historical clusters.
@@ -171,6 +177,7 @@ def classify_new_day(new_day_data, daily_data_df, clusters):
     print(f"The new day is assigned to cluster {assigned_cluster} with similarity {cluster_similarities[assigned_cluster]}")
     return assigned_cluster
 
+## Creates a train & a test DataFrame for the given threshold
 def compute_test_train(period_data, threshold):
     ## Compute the 90 percent for training and the rest for testing
     period_data['date'] = period_data['xltime'].dt.date
@@ -193,7 +200,18 @@ def compute_test_train(period_data, threshold):
 
     return train_data, test_data, days
 
+## Allocates each day in the test DataFrame to one of the computed clusters
 def classify_test_data(df, threshold=0.8):
+    """
+    Classify all the days in the testing set into an existing cluster based on cosine similarity with historical clusters.
+
+    Parameters:
+        - df: the whole DataFrame which will then be split into train/test and assigned to a cluster.
+    Returns:
+        - daily_data_df: DataFrame of historical daily data used for clustering.
+        - clusters: DataFrame containing cluster assignments for all the data.
+    """
+
     train, test, days = compute_test_train(df, threshold)
     
     clusters, historical_log = create_clusters(train)
@@ -219,13 +237,3 @@ def classify_test_data(df, threshold=0.8):
         clusters = pd.concat([clusters, new_row], ignore_index=True)
 
     return clusters, days
-
-def main():
-
-    parser = argparse.ArgumentParser(description="Cluster ETF data days")
-    parser.add_argument('main_tar_file', type=str, help="Path to the main ETF tar file")
-    args = parser.parse_args()
-    create_clusters(args.main_tar_file)
-
-if __name__ == '__main__':
-    main()

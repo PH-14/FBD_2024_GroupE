@@ -210,7 +210,7 @@ def clean_prices(df, columns_to_check):
     return df
 
 ## CLEANING THE BBO DATAFRAME
-# Careful: If the date does not exist for Ticker then returns None
+# Careful: If the date does not exist for stock then returns None
 def load_bbo(ticker, date, save = False):
 
     year = date.strftime('%Y')    
@@ -320,7 +320,6 @@ def load_bbo(ticker, date, save = False):
     return combined_df
 
 ## Create a Dataframe that contains all the events between two dates
-# Careful: If the ticker is None then consider all tickers available between the two dates
 def load_all(start_date, end_date, save = False, compress_tar = False):  
 
     days_for_period = filter_days_for_period(start_date, end_date)    
@@ -346,16 +345,16 @@ def load_all(start_date, end_date, save = False, compress_tar = False):
         if daily_data:
             combined_df = pd.concat(daily_data)
 
-            if save:
-                output_dir = "data/dates"
+        if save:
+            output_dir = "data/dates"
 
-                output_path = os.path.join(output_dir, f"{date_str}.parquet")
-                combined_df.to_parquet(output_path)
+            output_path = os.path.join(output_dir, f"{date_str}.parquet")
+            combined_df.to_parquet(output_path)
 
-            if compress_tar:
-                input_dir = "data/dates/"
-                output_file = "data/period_data.tar"
-                compress_to_tar(input_dir, output_file)
+    if compress_tar:
+        input_dir = "data/dates/"
+        output_file = "data/period_data.tar"
+        compress_to_tar(input_dir, output_file)
 
     return combined_df
 
