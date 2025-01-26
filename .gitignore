@@ -1,3 +1,7 @@
 # ignore pycache
 __pycache__/
 
+# all csv, tar and parquet files 
+*.csv
+*.tar
+*.parquet
