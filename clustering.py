@@ -174,7 +174,6 @@ def classify_new_day(new_day_data, daily_data_df, clusters):
     
     # Find the cluster with the highest similarity
     assigned_cluster = max(cluster_similarities, key=cluster_similarities.get)
-    print(f"The new day is assigned to cluster {assigned_cluster} with similarity {cluster_similarities[assigned_cluster]}")
     return assigned_cluster
 
 ## Creates a train & a test DataFrame for the given threshold
@@ -222,7 +221,6 @@ def classify_test_data(df, threshold=0.8):
     for date in unique_dates:
         # Filter the DataFrame for the current date
         date_df = test[test["xltime"].dt.date == date]
-        print(date)
         if(pd.to_datetime(date).date() == pd.to_datetime("2012-12-24").date()):
             continue
         new_log_returns = compute_log_returns(date_df)
