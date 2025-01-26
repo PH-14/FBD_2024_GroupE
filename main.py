@@ -1,7 +1,7 @@
 import argparse
 import pandas as pd
 from data_preprocessing import preprocessing
-from clustering import create_clusters
+from clustering import classify_test_data
 
 def main(run_full_analysis):
     if run_full_analysis:
@@ -17,9 +17,10 @@ def main(run_full_analysis):
 
     # Step 2: Create our Clusters
     print("Running analysis...")
-    cluster_results = create_clusters(processed_data)
+    threshold = 0.8
+    cluster_results, days = classify_test_data(processed_data, threshold)
 
-    # Step 3: Run our strategies
+    # Step 3: TODO STRATEGIES
     print("Saving results...")
     save_results(analysis_results, output_path="results/analysis_results.csv")
 

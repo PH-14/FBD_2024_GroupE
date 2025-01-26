@@ -8,6 +8,7 @@ import matplotlib.cm as cm
 import matplotlib.pyplot as plt
 import networkx as nx
 import argparse
+from sklearn.metrics.pairwise import cosine_similarity
 
 ## Loads the cleaned data from the preprocessing
 def load_cleaned_data(tar_file_path):
@@ -110,7 +111,7 @@ def create_clusters(df):
 
     plot_clusters(G, partition)
 
-    return clusters
+    return clusters, daily_data_df
 
 ## Creates and visualizes the clusters from the .tar file.
 def create_clusters_file(tar_file_path):
@@ -136,35 +137,88 @@ def create_clusters_file(tar_file_path):
 
     plot_clusters(G, partition)
 
-    return clusters
+    return clusters, daily_data_df
 
 def classify_new_day(new_day_data, daily_data_df, clusters):
-        """
-        Classify a new day into an existing cluster based on correlation similarity with historical clusters.
+    """
+    Classify a new day into an existing cluster based on correlation similarity with historical clusters.
 
-        Parameters:
+    Parameters:
         - new_day_data: DataFrame containing log-returns of the new day to classify.
         - daily_data_df: DataFrame of historical daily data used for clustering.
         - clusters: DataFrame containing cluster assignments for the historical data.
 
-        Returns:
+    Returns:
         - assigned_cluster: The cluster the new day is assigned to.
-        """
+    """
         
-        # Compute correlation of the new day's vector with the existing days' vectors (daily_data_df)
-        new_day_corr = daily_data_df.corrwith(pd.Series(new_day_data))
-        # Assign the new day to the cluster with the highest correlation
-        # First, calculate the average correlation for each cluster
-        cluster_correlations = {}
-        for cluster in clusters['Cluster'].unique():
-            cluster_days = clusters[clusters['Cluster'] == cluster]['Day']
-            cluster_corrs = new_day_corr[cluster_days.index]
-            cluster_correlations[cluster] = cluster_corrs.mean()
+    # Align new_day_data to match the shape of daily_data_df
+    new_day_data = new_day_data.fillna(0).squeeze()
+    daily_data_df = daily_data_df.fillna(0)
+    
+    # Compute cosine similarity
+    similarities = cosine_similarity([new_day_data], daily_data_df.values)[0]
+    
+    # Assign the cluster based on the highest average similarity
+    cluster_similarities = {}
+    for cluster in clusters['Cluster'].unique():
+        cluster_days = clusters[clusters['Cluster'] == cluster]['Day']
+        cluster_indices = daily_data_df.index.isin(cluster_days)
+        cluster_similarities[cluster] = similarities[cluster_indices].mean()
+    
+    # Find the cluster with the highest similarity
+    assigned_cluster = max(cluster_similarities, key=cluster_similarities.get)
+    print(f"The new day is assigned to cluster {assigned_cluster} with similarity {cluster_similarities[assigned_cluster]}")
+    return assigned_cluster
 
-        # Assign the new day to the cluster with the highest average correlation
-        assigned_cluster = max(cluster_correlations, key=cluster_correlations.get)
-        print(f"The new day is assigned to cluster {assigned_cluster} with correlation {cluster_correlations[assigned_cluster]}")
-        return assigned_cluster
+def compute_test_train(period_data, threshold):
+    ## Compute the 90 percent for training and the rest for testing
+    period_data['date'] = period_data['xltime'].dt.date
+
+    start_date = period_data['date'].iloc[0]  # First date
+    end_date = period_data['date'].iloc[-1]   # Last date
+
+    period_data = period_data.drop(columns=['date'])
+
+    start_date = pd.to_datetime(start_date)
+    end_date = pd.to_datetime(end_date)
+
+    stop_date = (start_date + (end_date - start_date) * threshold).normalize()
+
+    # Filter the DataFrame to keep rows before the stop date
+    train_data = period_data[period_data["xltime"] < stop_date]
+    test_data = period_data[period_data["xltime"] >= stop_date]
+
+    days = days_difference = (end_date - start_date).days
+
+    return train_data, test_data, days
+
+def classify_test_data(df, threshold=0.8):
+    train, test, days = compute_test_train(df, threshold)
+    
+    clusters, historical_log = create_clusters(train)
+
+    unique_dates = test["xltime"].dt.date.unique()
+
+    # Iterate through each unique date
+    for date in unique_dates:
+        # Filter the DataFrame for the current date
+        date_df = test[test["xltime"].dt.date == date]
+        print(date)
+        if(pd.to_datetime(date).date() == pd.to_datetime("2012-12-24").date()):
+            continue
+        new_log_returns = compute_log_returns(date_df)
+        try:
+            cluster = classify_new_day(new_log_returns, historical_log, clusters)
+        except Exception as e: 
+            continue
+        new_row_data = {'Day': [date], 'Cluster': [cluster]}
+        # Create a new DataFrame from the row data
+        new_row = pd.DataFrame(new_row_data)
+        # Add the new rows to the existing DataFrame
+        clusters = pd.concat([clusters, new_row], ignore_index=True)
+
+    return clusters, days
 
 def main():
 

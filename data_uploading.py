@@ -321,7 +321,7 @@ def load_bbo(ticker, date, save = False):
 
 ## Create a Dataframe that contains all the events between two dates
 # Careful: If the ticker is None then consider all tickers available between the two dates
-def load_all(start_date, end_date, save = False, compress_to_tar = False):  
+def load_all(start_date, end_date, save = False, compress_tar = False):  
 
     days_for_period = filter_days_for_period(start_date, end_date)    
 
@@ -352,7 +352,7 @@ def load_all(start_date, end_date, save = False, compress_to_tar = False):
                 output_path = os.path.join(output_dir, f"{date_str}.parquet")
                 combined_df.to_parquet(output_path)
 
-            if compress_to_tar:
+            if compress_tar:
                 input_dir = "data/dates/"
                 output_file = "data/period_data.tar"
                 compress_to_tar(input_dir, output_file)
