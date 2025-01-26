@@ -9,7 +9,15 @@ import matplotlib.pyplot as plt
 import networkx as nx
 import argparse
 
-# process data for louvain clustering
+## Loads the cleaned data from the preprocessing
+def load_cleaned_data(tar_file_path):
+    with tarfile.open(tar_file_path, "r") as tar:
+        member = tar.getmembers()[0]  
+        with tar.extractfile(member) as f:
+            df = pd.read_parquet(f)
+    return df
+
+## Process data for louvain clustering
 def get_sortest_eig(C):
     '''
     input 
@@ -25,6 +33,7 @@ def get_sortest_eig(C):
     l,v = l[ordn],v[:,ordn]
     return l,v
 
+## Creates the Louvain graph from the correlation matrix
 def create_louvain_graph(correlation_matrix):
     """
     Create a Louvain graph from a correlation matrix
@@ -48,28 +57,14 @@ def create_louvain_graph(correlation_matrix):
     C = abs(correlation_matrix - C_0)
     return nx.from_pandas_adjacency(C)
 
-def load_data(tar_file):
-    combined_df = pd.DataFrame()
-
-    with tarfile.open(tar_file, 'r') as tar:
-        for member in tar.getmembers():
-            if member.isfile() and member.name.endswith('.parquet'):
-                # Extract the file
-                extracted_file = tar.extractfile(member)
-                if extracted_file:
-                    # Load the parquet file into a DataFrame
-                    daily_df = pd.read_parquet(extracted_file)
-                    daily_df.reset_index(inplace=True)
-                    combined_df = pd.concat([combined_df, daily_df], ignore_index=True)
-
-    return combined_df
-
+## Computes the log returns of each stock and minute
 def compute_log_returns(df):
 
     filtered_df = df.copy()
     filtered_df = filtered_df.pivot_table(index='xltime', columns='stock', values='price', aggfunc='mean')
     filtered_df.index = pd.to_datetime(filtered_df.index)
     filtered_df = filtered_df[filtered_df.index.time < datetime.strptime('15:30', '%H:%M').time()]
+    
     # Calculate log-returns for each stock
     log_returns = filtered_df.copy()
     log_returns.iloc[:, :] = log_returns.apply(lambda col: np.log(col).diff())
@@ -81,6 +76,7 @@ def compute_log_returns(df):
     
     return daily_data_df
 
+## Plots the found clusters
 def plot_clusters(G, partition):
 
     #Visualize the clusters 
@@ -94,10 +90,33 @@ def plot_clusters(G, partition):
 
     return None
 
-def create_clusters(tar_file_path):
+## Creates and visualizes all the clusters from a dataframe of the period_data 
+def create_clusters(df):
+
+    daily_data_df = compute_log_returns(df)
+    
+    print(f"Daily data shape: {daily_data_df.shape}")
+
+    correlation_matrix = daily_data_df.T.corr()
+    G = create_louvain_graph(correlation_matrix)
+
+    # Apply Louvain clustering
+    partition = community.community_louvain.best_partition(G, weight='weight', random_state = 42)
+
+    # Convert results to a DataFrame
+    clusters = pd.DataFrame({'Day': list(partition.keys()), 'Cluster': list(partition.values())})
+    print("There are", len(clusters['Cluster'].unique()), "clusters")
+    print("The length of each clusters are", clusters.groupby('Cluster').size())
+
+    plot_clusters(G, partition)
+
+    return clusters
+
+## Creates and visualizes the clusters from the .tar file.
+def create_clusters_file(tar_file_path):
     # Argument parsing
     print(f"Processing tar file: {tar_file_path}")
-    period_data = load_data(tar_file_path)
+    period_data = load_cleaned_data(tar_file_path)
     print(f"Combined DataFrame shape: {period_data.shape}")
 
     daily_data_df = compute_log_returns(period_data)
@@ -114,8 +133,6 @@ def create_clusters(tar_file_path):
     clusters = pd.DataFrame({'Day': list(partition.keys()), 'Cluster': list(partition.values())})
     print("There are", len(clusters['Cluster'].unique()), "clusters")
     print("The length of each clusters are", clusters.groupby('Cluster').size())
-
-    print("The clusters are:", clusters)
 
     plot_clusters(G, partition)
 
