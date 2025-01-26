@@ -24,13 +24,14 @@ def compute_top_bottom_weights(mean_log_returns, quantile):
 
 def compute_momentum_weights(mean_log_returns):
     weights = np.where(mean_log_returns > 0, mean_log_returns / mean_log_returns.sum(), 0)
+    weights = np.where(mean_log_returns < 0, mean_log_returns / abs(mean_log_returns).sum(), weights)
     return weights / weights.sum()
 
 def compute_risk_parity_weights(cluster_trades):
     risk_contributions = 1 / cluster_trades.std()
     return risk_contributions / risk_contributions.sum()
 
-def investment_strategy(strat: str, df_states: pd.DataFrame, df_trades: pd.DataFrame, w: int, quantile: float = 0.25):
+def investment_strategy(strat: str, df_states: pd.DataFrame, df_trades: pd.DataFrame, w=30, quantile: float = 0.25, use_cluster: bool = True): 
     """
     Computes investment weights based on historical cluster performance using various strategies.
     
@@ -47,14 +48,15 @@ def investment_strategy(strat: str, df_states: pd.DataFrame, df_trades: pd.DataF
     # Get the cluster for the current day 
     states = df_states.copy()
     trades = df_trades.copy()
-
     current_state = states['Cluster'].iloc[-1]
 
     
     
-
-    # Filter trades belonging to the same cluster (excluding the last day)
-    cluster_trades = trades[states['Cluster'] == current_state]
+    if use_cluster:
+        # Filter trades belonging to the same cluster (excluding the last day)
+        cluster_trades = trades[states['Cluster'] == current_state]
+    else:
+        cluster_trades = trades
 
     # Compute mean and covariance matrix of log returns
     mean_log_returns = cluster_trades.mean()
