@@ -13,7 +13,8 @@ def compute_w_ret_weights(mean_log_returns):
     max_pos_return = mean_log_returns[mean_log_returns > 0].max()
     min_neg_return = mean_log_returns[mean_log_returns < 0].min()
     weights = np.where(mean_log_returns > 0, mean_log_returns / max_pos_return, mean_log_returns / abs(min_neg_return))
-    weights = weights / np.sum(np.abs(weights))
+    if np.sum(np.abs(weights)) >0.1 or np.sum(np.abs(weights)) < -0.1:
+        weights = weights / np.sum(np.abs(weights))
     return weights 
 
 def compute_top_bottom_weights(mean_log_returns, quantile):
