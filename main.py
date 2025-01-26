@@ -2,6 +2,7 @@ import argparse
 import pandas as pd
 from data_preprocessing import preprocessing
 from clustering import classify_test_data
+from strategy import compute_returns
 
 def main(run_full_analysis):
     if run_full_analysis:
@@ -22,7 +23,7 @@ def main(run_full_analysis):
 
     # Step 3: TODO STRATEGIES
     print("Saving results...")
-    save_results(analysis_results, output_path="results/analysis_results.csv")
+    results = compute_returns(processed_data, cluster_results, days)
 
     print("Workflow completed successfully.")
 
