@@ -107,23 +107,16 @@ def fill_bid_price_by_day_and_stock(df):
 ## Fills the Nan values with the weighted average of the previous 5 minutes.
 def fill_missing_values_by_stock_and_date(df):
 
-    # Ensure xltime is consistent and timezone-naive
     df['xltime'] = pd.to_datetime(df['xltime']).dt.tz_localize(None)
-
-    # Extract the date from xltime for grouping
     df['date'] = df['xltime'].dt.date
 
     def fill_group(group):
-        # Sort the group by time to ensure proper ordering
         group = group.sort_values('xltime')
 
         # Fill missing prices using weighted average of previous 5 minutes
         def compute_weighted_price(row, idx):
-            # Select the previous 5 rows
             previous_rows = group.iloc[max(0, idx - 5):idx]
-            # Calculate the total weights
             total_weights = previous_rows['bid_volume'] + previous_rows['ask_volume']
-            # Weighted average formula
             if total_weights.sum() > 0:
                 return np.sum(previous_rows['price'] * total_weights) / total_weights.sum()
             else:
@@ -145,10 +138,8 @@ def fill_missing_values_by_stock_and_date(df):
 
         return group
 
-    # Apply the filling logic to each group (by stock and date)
     df = df.groupby(['stock', 'date'], group_keys=False).apply(fill_group)
 
-    # Drop the temporary 'date' column
     df = df.drop(columns=['date'])
 
     return df
@@ -172,7 +163,6 @@ def save_to_parquet_and_tar(df, parquet_filename, tar_filename):
 
 ## OVERALL FUNCTION USED FOR THE PREPROCESSING
 def preprocessing(filename, save = False, demo = True):
-    # Load the right data to a dataset
     period_data = load_data(filename)
 
     # Update the dataframe, especially take the minutes before 15:30 for the analysis
@@ -183,12 +173,11 @@ def preprocessing(filename, save = False, demo = True):
     
     dates = df_pivot.copy()
     dates.index = pd.to_datetime(dates.index)
-    # Get the first and last index (times)
+
     first_time = dates.index.min()
     last_time = dates.index.max()
 
-    # Extract only the dates in YYYY-MM-DD format
-    first_date = first_time.date()  # Or first_time.strftime('%Y-%m-%d')
+    first_date = first_time.date()  
     last_date = last_time.date()
 
     # Plot the minutes in each stock for the period
