@@ -114,7 +114,11 @@ def compute_log_returns_eod(df, fill_method='ffill'):
     return intraday_returns
 
 
-def compute_returns_eod(df, fill_method='ffill'):
+def compute_returns_eod(processed_data, fill_method='ffill'):
+    df = processed_data.copy()
+    df = df.pivot_table(index='xltime', columns='stock', values='price', aggfunc='mean')
+    df.index = pd.to_datetime(df.index)
+    df = df[df.index.time >= datetime.strptime('15:30', '%H:%M').time()]
 
     # Ensure the index is datetime
     df.index = pd.to_datetime(df.index)
@@ -127,21 +131,21 @@ def compute_returns_eod(df, fill_method='ffill'):
 
     # Group by date and compute intraday log return
     intraday_returns = df.groupby(df.index.date).apply(lambda x: x.iloc[-1]/ x.iloc[0] -1 )
-
-    # Remove the multi-index introduced by groupby
-    #intraday_returns.index = intraday_returns.index.droplevel(0)
+    
+    intraday_returns.index = intraday_returns.index.rename('Day')
+    intraday_returns.index = pd.to_datetime(intraday_returns.index)
     
     return intraday_returns
 
 
-def rolling_backtest(states_df, trades_df, min_window_size=30, strat="tan", quantile=0.25):
+def rolling_backtest(df_states, df_trades, min_window_size=30, quantile=0.25):
     """
     Performs a rolling window backtest of the investment strategy.
 
     Parameters:
     - strategy_func: Function to apply the investment strategy
-    - states_df: DataFrame with market states for each day
-    - trades_df: DataFrame with log returns for each stock per day
+    - df_states: DataFrame with market states for each day
+    - df_trades: DataFrame with log returns for each stock per day
     - window_size: Number of past days to consider in the rolling window
     - strat: The investment strategy to use (e.g., 'tan', 'w_ret', etc.)
     - quantile: Percentage of top and bottom stocks to long and short (default 10%)
@@ -149,27 +153,53 @@ def rolling_backtest(states_df, trades_df, min_window_size=30, strat="tan", quan
     Returns:
     - results_df: DataFrame containing portfolio returns for each day in the test period
     """
-    results = []
+    results =  pd.DataFrame(index=df_states.index[min_window_size:])
+    strats = ['tan', 'w_ret', 'top_bottom', 'momentum', 'risk_parity']
 
-    for i in tqdm(range(min_window_size, len(states_df))):
+    for strat in strats:
+        for i in tqdm(range(min_window_size, len(df_states))):
+            
+            # Select rolling window for states and trades
+            rolling_states = df_states.iloc[: i + 1]
+            rolling_return = df_trades.iloc[: i + 1]
+
+            # Call the investment strategy function
+            weights = investment_strategy(strat, rolling_states, rolling_return, quantile)
+
+            # Compute portfolio return using today's actual returns (excluding the last day)
+            portfolio_return = compute_portfolio_return(weights, rolling_return.iloc[-1])
+
+            # Add a column to the results DataFrame with name strat + '_return'
+            results.loc[df_states.index[i], 'c_' + strat + '_return'] = portfolio_return
+
+            # Redo without clusters
+            weights = investment_strategy(strat, rolling_states, rolling_return, quantile, use_cluster=False)
+
+            # Compute portfolio return using today's actual returns (excluding the last day)
+            portfolio_return = compute_portfolio_return(weights, rolling_return.iloc[-1])
+
+            results.loc[df_states.index[i], strat + '_return'] = portfolio_return
+
+
+        # Convert results to a DataFrame
+        results_df = pd.DataFrame(results)
         
-        # Select rolling window for states and trades
-        rolling_states = states_df.iloc[: i + 1]
-        rolling_return = trades_df.iloc[: i + 1]
-
-        # Call the investment strategy function
-        weights = investment_strategy(strat, rolling_states, rolling_return, min_window_size, quantile)
-
-        # Compute portfolio return using today's actual returns (excluding the last day)
-        portfolio_return = compute_portfolio_return(weights, rolling_return.iloc[-1])
-
-        results.append({'date': states_df.index[i], strat + '_return': portfolio_return})
-
-    # Convert results to a DataFrame
-    results_df = pd.DataFrame(results)
-    
-
-    # Compute cumulative return for performance evaluation
-    results_df['cumulative_return'] = (1 + results_df['portfolio_return']).cumprod()
 
     return results_df
+
+
+def compute_returns(processed_data, clusters_results, days):
+    """
+    computes the returns for all the strategies
+    """
+    stock_returns = compute_returns_eod(processed_data)
+
+    clusters_results.set_index('Day', inplace=True)
+    clusters_results.index = pd.to_datetime(clusters_results.index)
+
+     # drop lines in trades in for which we don't have clusters
+    stock_returns = stock_returns[stock_returns.index.isin(clusters_results.index)]
+
+    results = rolling_backtest(clusters_results, stock_returns, min_window_size=days)
+
+    return results

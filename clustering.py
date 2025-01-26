@@ -195,7 +195,7 @@ def compute_test_train(period_data, threshold):
     train_data = period_data[period_data["xltime"] < stop_date]
     test_data = period_data[period_data["xltime"] >= stop_date]
 
-    days = days_difference = (end_date - start_date).days
+    days = len(test_data["xltime"].dt.date.unique())
 
     return train_data, test_data, days
 
